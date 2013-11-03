@@ -6,5 +6,5 @@ import (
 )
 
 func main() {
-	log.Fatal(http.ListenAndServe(":80", http.FileServer(http.Dir("/home/jp/www"))))
+	log.Fatal(http.ListenAndServe("jprbnsn.com", http.FileServer(http.Dir("/home/jp/www"))))
 }
