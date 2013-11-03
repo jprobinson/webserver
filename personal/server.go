@@ -30,7 +30,5 @@ func main() {
 
 	apiHandler := web.AccessLogHandler(accessLog, router)
 
-	http.Handle("/", apiHandler)
-
 	log.Fatal(http.ListenAndServe(":80", apiHandler))
 }
