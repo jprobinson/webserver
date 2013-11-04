@@ -23,12 +23,12 @@ func main() {
 	router := mux.NewRouter()
 
 	jpRouter := router.Host("jprbnsn.com").Subrouter()
-	jpRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www")))
+	jpRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
 
 	wwwJPRouter := router.Host("www.jprbnsn.com").Subrouter()
-	wwwJPRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www")))
+	wwwJPRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
 
-	apiHandler := web.AccessLogHandler(accessLog, router)
+	handler := web.AccessLogHandler(accessLog, router)
 
-	log.Fatal(http.ListenAndServe(":80", apiHandler))
+	log.Fatal(http.ListenAndServe(":80", handler))
 }
