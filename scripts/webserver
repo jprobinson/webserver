@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# description: the got web server 
+# description: the go web server 
 # processname: webserver 
 
 BIN_PATH=/opt/jp/bin
