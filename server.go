@@ -29,14 +29,16 @@ func main() {
 
 	router := mux.NewRouter()
 
-	// newshound setup
+	// newshound API setup
 	config := NewConfig()
 	newshoundAPI := api.NewNewshoundAPI(config.DBURL, config.DBUser, config.DBPassword)
-	// add newshound server
-	newshound := router.Host("newshound.jprbnsn.com").Subrouter()
-	subApiRouter := newshound.PathPrefix(newshoundAPI.UrlPrefix()).Subrouter()
-	newshoundAPI.Handle(subApiRouter)
-	newshoundSub.PathPrefix("/").Handler(http.FileServer(http.Dir(newshoundWeb)))
+	// add newshound subdomain to webserver
+	newshoundRouter := router.Host("newshound.jprbnsn.com").Subrouter()
+	// add newshound's API to the subdomain
+	newshoundAPIRouter := newshoundRouter.PathPrefix(newshoundAPI.UrlPrefix()).Subrouter()
+	newshoundAPI.Handle(newshoundAPIRouter)
+	// add newshound UI to to the subdomain
+	newshoundRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(newshoundWeb)))
 
 	jpRouter := router.Host("jprbnsn.com").Subrouter()
 	jpRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
