@@ -40,6 +40,10 @@ func main() {
 	// add newshound UI to to the subdomain
 	newshoundRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(newshoundWeb)))
 
+	// add the countdown
+	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
+	countdownRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/thecountdown")))
+
 	jpRouter := router.Host("jprbnsn.com").Subrouter()
 	jpRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
 
