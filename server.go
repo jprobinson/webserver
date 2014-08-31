@@ -12,6 +12,7 @@ import (
 	"github.com/jprobinson/go-utils/utils"
 	"github.com/jprobinson/go-utils/web"
 	"github.com/jprobinson/newshound/web/webserver/api"
+	"github.com/jprobinson/webserver/api/subway"
 )
 
 const (
@@ -40,16 +41,30 @@ func main() {
 	// add newshound UI to to the subdomain
 	newshoundRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(newshoundWeb)))
 
+	// add subway stuffs to server
+	subwayAPI := &subway.SubwayAPI{}
+	// add subway subdomain to webserver
+	subwayRouter := router.Host("subway.jprbnsn.com").Subrouter()
+	// add subways's API to the subdomain
+	subwayAPIRouter := subwayRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
+	subwayAPI.Handle(subwayAPIRouter)
+	// add subway UI to to the subdomain...web we have one
+	//subwayRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(subwayWeb)))
+
 	// add the countdown
 	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
 	countdownRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/thecountdown")))
 
 	jpRouter := router.Host("jprbnsn.com").Subrouter()
+	subwayAPIRouter1 := jpRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
+	subwayAPI.Handle(subwayAPIRouter1)
+
 	jpRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
-
 	wwwJPRouter := router.Host("www.jprbnsn.com").Subrouter()
-	wwwJPRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
+	subwayAPIRouter2 := wwwJPRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
+	subwayAPI.Handle(subwayAPIRouter2)
 
+	wwwJPRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
 	handler := web.AccessLogHandler(accessLog, router)
 
 	log.Fatal(http.ListenAndServe(":80", handler))
