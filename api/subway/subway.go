@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jprobinson/go-utils/web"
@@ -29,22 +28,22 @@ func nextTrains(w http.ResponseWriter, r *http.Request) {
 	stop := vars["stopId"]
 	key := vars["key"]
 
-	feed, err := gosubway.GetFeed(key)
+	feed, err := gosubway.GetFeed(key, true)
 	if err != nil {
 		web.ErrorResponse(w, ErrFeed, http.StatusBadRequest)
 		return
 	}
 
 	north, south := feed.NextTrains(stop)
-	resp := nextTrainResp{north, south}
+	resp := nextTrainResp{north.String(), south.String()}
 
 	fmt.Fprint(w, web.JsonResponseWrapper{resp})
 
 }
 
 type nextTrainResp struct {
-	Northbound time.Duration `json:"northbound"`
-	Southbound time.Duration `json:"southbound"`
+	Northbound string `json:"northbound"`
+	Southbound string `json:"southbound"`
 }
 
 func setCommonHeaders(w http.ResponseWriter, r *http.Request) {
