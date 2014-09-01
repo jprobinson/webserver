@@ -53,11 +53,9 @@ func main() {
 	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
 	countdownRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/thecountdown")))
 
-	jpRouter := router.Host("jprbnsn.com").Subrouter()
-	jpRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
-	wwwJPRouter := router.Host("www.jprbnsn.com").Subrouter()
+	setupJP(router, "jprbnsn.com")
+	setupJP(router, "www.jprbnsn.com")
 
-	wwwJPRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
 	handler := web.AccessLogHandler(accessLog, router)
 
 	log.Fatal(http.ListenAndServe(":80", handler))
@@ -72,6 +70,11 @@ func setupSubway(router *mux.Router, sconfig *config, host string) {
 	subwayAPI.Handle(subwayAPIRouter)
 	// add subway UI to to the subdomain...web we have one
 	subwayRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(subwayWeb)))
+}
+
+func setupJP(router *mux.Router, host string) {
+	srouter := router.Host(host).Subrouter()
+	srouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
 }
 
 type config struct {
