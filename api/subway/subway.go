@@ -19,8 +19,6 @@ func NewSubwayAPI(key string) *SubwayAPI {
 	return &SubwayAPI{key}
 }
 
-const key = "5762e4d870addcd2edb2e53e09188017"
-
 func (s *SubwayAPI) UrlPrefix() string {
 	return "/svc/subway-api/v1"
 }
