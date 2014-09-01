@@ -45,32 +45,33 @@ func main() {
 
 	// add subway stuffs to server
 	sconfig := NewConfig(subwayConfig)
-	subwayAPI := subway.NewSubwayAPI(sconfig.SubwayKey)
-	// add subway subdomain to webserver
-	subwayRouter := router.Host("subway.jprbnsn.com").Subrouter()
-	// add subways's API to the subdomain
-	subwayAPIRouter := subwayRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
-	subwayAPI.Handle(subwayAPIRouter)
-	// add subway UI to to the subdomain...web we have one
-	subwayRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(subwayWeb)))
+	setupSubway(router, sconfig, "subway.jprbnsn.com")
+	setupSubway(router, sconfig, "wheresthel.com")
+	setupSubway(router, sconfig, "www.wheresthel.com")
 
 	// add the countdown
 	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
 	countdownRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/thecountdown")))
 
 	jpRouter := router.Host("jprbnsn.com").Subrouter()
-	subwayAPIRouter1 := jpRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
-	subwayAPI.Handle(subwayAPIRouter1)
-
 	jpRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
 	wwwJPRouter := router.Host("www.jprbnsn.com").Subrouter()
-	subwayAPIRouter2 := wwwJPRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
-	subwayAPI.Handle(subwayAPIRouter2)
 
 	wwwJPRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/jprbnsn")))
 	handler := web.AccessLogHandler(accessLog, router)
 
 	log.Fatal(http.ListenAndServe(":80", handler))
+}
+
+func setupSubway(router *mux.Router, sconfig *config, host string) {
+	subwayAPI := subway.NewSubwayAPI(sconfig.SubwayKey)
+	// add subway subdomain to webserver
+	subwayRouter := router.Host(host).Subrouter()
+	// add subways's API to the subdomain
+	subwayAPIRouter := subwayRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
+	subwayAPI.Handle(subwayAPIRouter)
+	// add subway UI to to the subdomain...web we have one
+	subwayRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(subwayWeb)))
 }
 
 type config struct {
