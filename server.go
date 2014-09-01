@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,8 +18,11 @@ const (
 	serverLog = "/var/log/goserver/server.log"
 	accessLog = "/var/log/goserver/access.log"
 
-	configFile   = "/opt/newshound/etc/config.json"
+	houndConfig  = "/opt/newshound/etc/config.json"
+	subwayConfig = "/opt/jp/etc/keys.json"
+
 	newshoundWeb = "/opt/newshound/www"
+	subwayWeb    = "/home/jp/www/subway"
 )
 
 func main() {
@@ -31,8 +33,8 @@ func main() {
 	router := mux.NewRouter()
 
 	// newshound API setup
-	config := NewConfig()
-	newshoundAPI := api.NewNewshoundAPI(config.DBURL, config.DBUser, config.DBPassword)
+	nconfig := NewConfig(houndConfig)
+	newshoundAPI := api.NewNewshoundAPI(nconfig.DBURL, nconfig.DBUser, nconfig.DBPassword)
 	// add newshound subdomain to webserver
 	newshoundRouter := router.Host("newshound.jprbnsn.com").Subrouter()
 	// add newshound's API to the subdomain
@@ -42,14 +44,15 @@ func main() {
 	newshoundRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(newshoundWeb)))
 
 	// add subway stuffs to server
-	subwayAPI := &subway.SubwayAPI{}
+	sconfig := NewConfig(subwayConfig)
+	subwayAPI := subway.NewSubwayAPI(sconfig.SubwayKey)
 	// add subway subdomain to webserver
 	subwayRouter := router.Host("subway.jprbnsn.com").Subrouter()
 	// add subways's API to the subdomain
 	subwayAPIRouter := subwayRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
 	subwayAPI.Handle(subwayAPIRouter)
 	// add subway UI to to the subdomain...web we have one
-	//subwayRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(subwayWeb)))
+	subwayRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(subwayWeb)))
 
 	// add the countdown
 	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
@@ -74,19 +77,21 @@ type config struct {
 	DBURL      string `json:"db-url"`
 	DBUser     string `json:"db-user"`
 	DBPassword string `json:"db-pw"`
+
+	SubwayKey string
 }
 
-func NewConfig() *config {
+func NewConfig(filename string) *config {
 	config := config{}
 
-	readBytes, err := ioutil.ReadFile(configFile)
+	readBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		panic(fmt.Sprintf("Cannot read config file: %s %s", config, err))
+		log.Fatalf("Cannot read config file: %s %s", filename, err)
 	}
 
 	err = json.Unmarshal(readBytes, &config)
 	if err != nil {
-		panic(fmt.Sprintf("Cannot parse JSON in config file: %s %s", config, err))
+		log.Fatalf("Cannot parse JSON in config file: %s %s", filename, err)
 	}
 
 	return &config
