@@ -22,6 +22,7 @@ const (
 	subwayConfig = "/opt/jp/etc/keys.json"
 
 	newshoundWeb = "/opt/newshound/www"
+	wheresLWeb   = "/home/jp/www/ltrain"
 	subwayWeb    = "/home/jp/www/subway"
 )
 
@@ -45,13 +46,17 @@ func main() {
 
 	// add subway stuffs to server
 	sconfig := NewConfig(subwayConfig)
-	setupSubway(router, sconfig, "subway.jprbnsn.com")
-	setupSubway(router, sconfig, "wheresthel.com")
-	setupSubway(router, sconfig, "www.wheresthel.com")
+	setupSubway(router, sconfig, subwayWeb, "subway.jprbnsn.com")
+	setupSubway(router, sconfig, wheresLWeb, "wheresthel.com")
+	setupSubway(router, sconfig, wheresLWeb, "www.wheresthel.com")
 
 	// add the countdown
 	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
 	countdownRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/thecountdown")))
+
+	// add wg4gl
+	setupWG4GL(router, "wg4gl.com")
+	setupWG4GL(router, "www.wg4gl.com")
 
 	setupJP(router, "jprbnsn.com")
 	setupJP(router, "www.jprbnsn.com")
@@ -61,7 +66,12 @@ func main() {
 	log.Fatal(http.ListenAndServe(":80", handler))
 }
 
-func setupSubway(router *mux.Router, sconfig *config, host string) {
+func setupWG4GL(router *mux.Router, host string) {
+	wgRouter := router.Host(host).Subrouter()
+	wgRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/wg4gl")))
+}
+
+func setupSubway(router *mux.Router, sconfig *config, www, host string) {
 	subwayAPI := subway.NewSubwayAPI(sconfig.SubwayKey)
 	// add subway subdomain to webserver
 	subwayRouter := router.Host(host).Subrouter()
@@ -69,7 +79,7 @@ func setupSubway(router *mux.Router, sconfig *config, host string) {
 	subwayAPIRouter := subwayRouter.PathPrefix(subwayAPI.UrlPrefix()).Subrouter()
 	subwayAPI.Handle(subwayAPIRouter)
 	// add subway UI to to the subdomain...web we have one
-	subwayRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(subwayWeb)))
+	subwayRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(www)))
 }
 
 func setupJP(router *mux.Router, host string) {
