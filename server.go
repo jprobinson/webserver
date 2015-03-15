@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/yvasiyarov/gorelic"
 
 	"github.com/jprobinson/go-utils/utils"
 	"github.com/jprobinson/go-utils/web"
@@ -18,8 +19,9 @@ const (
 	serverLog = "/var/log/goserver/server.log"
 	accessLog = "/var/log/goserver/access.log"
 
-	houndConfig  = "/opt/newshound/etc/config.json"
-	subwayConfig = "/opt/jp/etc/keys.json"
+	houndConfig    = "/opt/newshound/etc/config.json"
+	subwayConfig   = "/opt/jp/etc/keys.json"
+	newRelicConfig = "/opt/jp/etc/newrelic.json"
 
 	newshoundWeb = "/opt/newshound/www"
 	wheresLWeb   = "/home/jp/www/ltrain"
@@ -27,6 +29,15 @@ const (
 )
 
 func main() {
+
+	nrconfig := NewConfig(newRelicConfig)
+	agent := gorelic.NewAgent()
+	agent.Verbose = true
+	agent.NewrelicName = "webserver - linode"
+	agent.CollectHTTPStat = true
+	agent.NewrelicLicense = nrconfig.NewRelicKey
+	agent.Run()
+
 	logSetup := utils.NewDefaultLogSetup(serverLog)
 	logSetup.SetupLogging()
 	go utils.ListenForLogSignal(logSetup)
@@ -35,7 +46,7 @@ func main() {
 
 	// newshound API setup
 	nconfig := NewConfig(houndConfig)
-	newshoundAPI := api.NewNewshoundAPI(nconfig.DBURL, nconfig.DBUser, nconfig.DBPassword)
+	newshoundAPI := api.NewNewshoundAPI(nconfig.DBURL, nconfig.DBUser, nconfig.DBPassword, agent)
 	// add newshound subdomain to webserver
 	newshoundRouter := router.Host("newshound.jprbnsn.com").Subrouter()
 	// add newshound's API to the subdomain
@@ -46,9 +57,13 @@ func main() {
 
 	// add subway stuffs to server
 	sconfig := NewConfig(subwayConfig)
-	setupSubway(router, sconfig, subwayWeb, "subway.jprbnsn.com")
-	setupSubway(router, sconfig, wheresLWeb, "wheresthel.com")
-	setupSubway(router, sconfig, wheresLWeb, "www.wheresthel.com")
+	setupSubway(router, sconfig, subwayWeb, "subway.jprbnsn.com", agent)
+	setupSubway(router, sconfig, subwayWeb, "wheresthetrain.nyc", agent)
+	setupSubway(router, sconfig, subwayWeb, "www.wheresthetrain.nyc", agent)
+	setupSubway(router, sconfig, subwayWeb, "wtt.nyc", agent)
+	setupSubway(router, sconfig, subwayWeb, "www.wtt.nyc", agent)
+	setupSubway(router, sconfig, wheresLWeb, "wheresthel.com", agent)
+	setupSubway(router, sconfig, wheresLWeb, "www.wheresthel.com", agent)
 
 	// add the countdown
 	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
@@ -62,6 +77,7 @@ func main() {
 	setupJP(router, "www.jprbnsn.com")
 
 	handler := web.AccessLogHandler(accessLog, router)
+	handler = agent.WrapHTTPHandler(handler)
 
 	log.Fatal(http.ListenAndServe(":80", handler))
 }
@@ -71,8 +87,8 @@ func setupWG4GL(router *mux.Router, host string) {
 	wgRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/wg4gl")))
 }
 
-func setupSubway(router *mux.Router, sconfig *config, www, host string) {
-	subwayAPI := subway.NewSubwayAPI(sconfig.SubwayKey)
+func setupSubway(router *mux.Router, sconfig *config, www, host string, agent *gorelic.Agent) {
+	subwayAPI := subway.NewSubwayAPI(sconfig.SubwayKey, agent)
 	// add subway subdomain to webserver
 	subwayRouter := router.Host(host).Subrouter()
 	// add subways's API to the subdomain
@@ -93,6 +109,8 @@ type config struct {
 	DBPassword string `json:"db-pw"`
 
 	SubwayKey string
+
+	NewRelicKey string
 }
 
 func NewConfig(filename string) *config {
