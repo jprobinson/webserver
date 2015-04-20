@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 
 	"github.com/gorilla/mux"
 	"github.com/yvasiyarov/gorelic"
@@ -48,6 +50,10 @@ func main() {
 	nconfig := NewConfig(houndConfig)
 	newshoundAPI := api.NewNewshoundAPI(nconfig.DBURL, nconfig.DBUser, nconfig.DBPassword, agent)
 	// add newshound subdomain to webserver
+	barkdRouter := router.Host("newshound.jprbnsn.com:8888").Subrouter()
+	barkdURL, _ := url.Parse("http://127.0.0.1:8888")
+	barkdRouter.PathPrefix("/").Handler(httputil.NewSingleHostReverseProxy(barkdURL))
+
 	newshoundRouter := router.Host("newshound.jprbnsn.com").Subrouter()
 	// add newshound's API to the subdomain
 	newshoundAPIRouter := newshoundRouter.PathPrefix(newshoundAPI.UrlPrefix()).Subrouter()
@@ -73,6 +79,9 @@ func main() {
 	setupWG4GL(router, "wg4gl.com")
 	setupWG4GL(router, "www.wg4gl.com")
 
+	setupColin(router, "colinjhiggins.com")
+	setupColin(router, "www.colinjhiggins.com")
+
 	setupJP(router, "jprbnsn.com")
 	setupJP(router, "www.jprbnsn.com")
 
@@ -80,6 +89,11 @@ func main() {
 	handler = agent.WrapHTTPHandler(handler)
 
 	log.Fatal(http.ListenAndServe(":80", handler))
+}
+
+func setupColin(router *mux.Router, host string) {
+	wgRouter := router.Host(host).Subrouter()
+	wgRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/home/jp/www/colinjhiggins")))
 }
 
 func setupWG4GL(router *mux.Router, host string) {
