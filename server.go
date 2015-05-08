@@ -37,12 +37,15 @@ func main() {
 
 	// add subway stuffs to server
 	sconfig := NewConfig(subwayConfig)
-	setupSubway(router, sconfig, subwayWeb, "wheresthetrain.nyc")
-	setupSubway(router, sconfig, subwayWeb, "wtt.nyc")
 	setupSubway(router, sconfig, subwayWeb, "subway.jprbnsn.com")
+	setupSubway(router, sconfig, subwayWeb, "wheresthetrain.nyc")
+	setupSubway(router, sconfig, subwayWeb, "www.wheresthetrain.nyc")
+	setupSubway(router, sconfig, subwayWeb, "wtt.nyc")
+	setupSubway(router, sconfig, subwayWeb, "www.wtt.nyc")
 	setupSubway(router, sconfig, wheresLWeb, "wheresthel.com")
 	setupSubway(router, sconfig, wheresLWeb, "www.wheresthel.com")
 
+	// add subway stuffs to server
 	// add the countdown
 	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
 	countdownRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/opt/jp/www/thecountdown")))
@@ -110,6 +113,8 @@ type config struct {
 	DBPassword string `json:"db-pw"`
 
 	SubwayKey string
+
+	NewRelicKey string
 }
 
 func NewConfig(filename string) *config {
