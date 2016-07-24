@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/NYTimes/gizmo/server"
 	"github.com/gorilla/mux"
 	"github.com/jprobinson/go-utils/web"
 	"github.com/jprobinson/gosubway"
@@ -25,9 +26,9 @@ func (s *SubwayAPI) UrlPrefix() string {
 }
 
 func (s *SubwayAPI) Handle(subRtr *mux.Router) {
-	subRtr.HandleFunc("/next-trains/{feed}/{stopId}", s.nextTrains).Methods("GET")
+	subRtr.Handle("/next-trains/{feed}/{stopId}", server.CORSHandler(http.HandlerFunc(s.nextTrains), "")).Methods("GET")
 
-	subRtr.HandleFunc("/stops/{train}", s.getStops).Methods("GET")
+	subRtr.Handle("/stops/{train}", server.CORSHandler(http.HandlerFunc(s.getStops), "")).Methods("GET")
 }
 
 var ErrFeed = errors.New("sorry! we had problems with the MTA feed.")
