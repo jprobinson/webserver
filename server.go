@@ -27,26 +27,23 @@ const (
 )
 
 func main() {
-	logSetup := utils.NewDefaultLogSetup(serverLog)
-	logSetup.SetupLogging()
-	go utils.ListenForLogSignal(logSetup)
-
 	router := mux.NewRouter()
 
 	// add subway redirects to server
-	setupSubway(router, "subway.jprbnsn.com")
-	setupSubway(router, "wheresthel.com")
-	setupSubway(router, "www.wheresthel.com")
+	subway(router, "subway.jprbnsn.com")
+	subway(router, "wheresthel.com")
+	subway(router, "www.wheresthel.com")
 
 	// add the countdown
-	countdownRouter := router.Host("countdown.jprbnsn.com").Subrouter()
-	countdownRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/opt/jp/www/thecountdown")))
+	static(router, "countdown.jprbnsn.com", "/opt/jp/www/thecountdown")
 
-	setupColin(router, "colinjhiggins.com")
-	setupColin(router, "www.colinjhiggins.com")
+	// add colin
+	static(router, "colinjhiggins.com", "/opt/jp/www/colinjhiggins")
+	static(router, "www.colinjhiggins.com", "/opt/jp/www/colinjhiggins")
 
-	setupJP(router, "jprbnsn.com")
-	setupJP(router, "www.jprbnsn.com")
+	// add personal site
+	static(router, "jprbnsn.com", "/opt/jp/www/jprbnsn")
+	static(router, "www.jprbnsn.com", "/opt/jp/www/jprbnsn")
 
 	// newshound API setup
 	nconfig := NewConfig(houndConfig)
@@ -65,31 +62,41 @@ func main() {
 	barkdRouter.PathPrefix("/").Handler(httputil.NewSingleHostReverseProxy(barkdURL))
 
 	handler := web.AccessLogHandler(accessLog, router)
+	logSetup := utils.NewDefaultLogSetup(serverLog)
+	logSetup.SetupLogging()
+	go utils.ListenForLogSignal(logSetup)
 
+	// https
 	certManager := autocert.Manager{
 		Prompt: autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(
 			"jprbnsn.com", "www.jprbnsn.com",
 			"newshound.jprbnsn.com",
 			"colinjhiggins.com", "www.colinjhiggins.com",
+			"countdown.jprbnsn.com",
+			"wheresthel.com", "www.wheresthel.com",
+			"subway.jprbnsn.com",
 		),
 		Cache: autocert.DirCache("certs"),
 	}
-
-	// http
-	go log.Fatal(http.ListenAndServe(":80", handler))
-
-	// https
 	server := &http.Server{
-		Addr: ":443",
 		TLSConfig: &tls.Config{
 			GetCertificate: certManager.GetCertificate,
 		},
+		Handler: handler,
+		Addr:    ":https",
 	}
-	log.Fatal(server.ListenAndServeTLS("", ""))
+	go func() {
+		log.Println("starting https...")
+		log.Fatal(server.ListenAndServeTLS("", ""))
+	}()
+
+	// http
+	log.Println("starting http...")
+	log.Fatal(http.ListenAndServe(":http", http.HandlerFunc(https)))
 }
 
-func setupSubway(router *mux.Router, host string) {
+func subway(router *mux.Router, host string) {
 	router.Host(host).Handler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "http://wheresthetrain.nyc", http.StatusMovedPermanently)
@@ -97,22 +104,23 @@ func setupSubway(router *mux.Router, host string) {
 	)
 }
 
-func setupJP(router *mux.Router, host string) {
+func static(router *mux.Router, host, dir string) {
 	srouter := router.Host(host).Subrouter()
-	srouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/opt/jp/www/jprbnsn")))
+	srouter.PathPrefix("/").Handler(http.FileServer(http.Dir(dir)))
 }
 
-func setupColin(router *mux.Router, host string) {
-	wgRouter := router.Host(host).Subrouter()
-	wgRouter.PathPrefix("/").Handler(http.FileServer(http.Dir("/opt/jp/www/colinjhiggins")))
+func https(w http.ResponseWriter, r *http.Request) {
+	target := "https://" + r.Host + r.URL.Path
+	if len(r.URL.RawQuery) > 0 {
+		target += "?" + r.URL.RawQuery
+	}
+	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
 
 type config struct {
 	DBURL      string `json:"db-url"`
 	DBUser     string `json:"db-user"`
 	DBPassword string `json:"db-pw"`
-
-	NewRelicKey string
 }
 
 func NewConfig(filename string) *config {
