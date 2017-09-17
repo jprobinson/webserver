@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 
 	"github.com/gorilla/mux"
 	"github.com/jprobinson/go-utils/utils"
@@ -45,6 +46,9 @@ func main() {
 	static(router, "jprbnsn.com", "/opt/jp/www/jprbnsn")
 	static(router, "www.jprbnsn.com", "/opt/jp/www/jprbnsn")
 
+	// join xword demo
+	joinGame(router)
+
 	// newshound API setup
 	nconfig := NewConfig(houndConfig)
 	newshoundAPI := api.NewNewshoundAPI(nconfig.DBURL, nconfig.DBUser, nconfig.DBPassword)
@@ -76,6 +80,7 @@ func main() {
 			"countdown.jprbnsn.com",
 			"wheresthel.com", "www.wheresthel.com",
 			"subway.jprbnsn.com",
+			"join.jprbnsn.com",
 		),
 		Cache: autocert.DirCache("certs"),
 	}
@@ -94,6 +99,16 @@ func main() {
 	// http
 	log.Println("starting http...")
 	log.Fatal(http.ListenAndServe(":http", http.HandlerFunc(https)))
+}
+
+func joinGame(router *mux.Router) {
+	router.Host("join.jprbnsn.com").Handler(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			code := path.Base(r.URL.Path)
+			http.Redirect(w, r, "https://machine-dot-nyt-games-dev.appspot.com/join/"+code,
+				http.StatusMovedPermanently)
+		}),
+	)
 }
 
 func subway(router *mux.Router, host string) {
