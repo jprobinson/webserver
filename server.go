@@ -6,25 +6,18 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"path"
 
 	"github.com/gorilla/mux"
 	"github.com/jprobinson/go-utils/utils"
 	"github.com/jprobinson/go-utils/web"
+	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
-
-	"github.com/jprobinson/newshound/web/webserver/api"
 )
 
 const (
 	serverLog = "/var/log/goserver/server.log"
 	accessLog = "/var/log/goserver/access.log"
-
-	houndConfig = "/opt/newshound/etc/config.json"
-
-	newshoundWeb = "/opt/newshound/www"
 )
 
 func main() {
@@ -49,21 +42,15 @@ func main() {
 	// join xword demo
 	joinGame(router)
 
-	// newshound API setup
-	nconfig := NewConfig(houndConfig)
-	newshoundAPI := api.NewNewshoundAPI(nconfig.DBURL, nconfig.DBUser, nconfig.DBPassword)
-	// add newshound subdomain to webserver
-	newshoundRouter := router.Host("newshound.jprbnsn.com").Subrouter()
-	// add newshound's API to the subdomain
-	newshoundAPIRouter := newshoundRouter.PathPrefix(newshoundAPI.UrlPrefix()).Subrouter()
-	newshoundAPI.Handle(newshoundAPIRouter)
-	// add newshound UI to to the subdomain
-	newshoundRouter.PathPrefix("/").Handler(http.FileServer(http.Dir(newshoundWeb)))
-
-	// add newshound barkd websockets
-	barkdRouter := router.Host("newshound.jprbnsn.com:8888").Subrouter()
-	barkdURL, _ := url.Parse("http://127.0.0.1:8888")
-	barkdRouter.PathPrefix("/").Handler(httputil.NewSingleHostReverseProxy(barkdURL))
+	// redirect to new newshound
+	router.Host("newshound.jprbnsn.com").HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			target := "https://newshound.email" + r.URL.Path
+			if len(r.URL.RawQuery) > 0 {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
+		})
 
 	handler := web.AccessLogHandler(accessLog, router)
 	logSetup := utils.NewDefaultLogSetup(serverLog)
@@ -87,6 +74,7 @@ func main() {
 	server := &http.Server{
 		TLSConfig: &tls.Config{
 			GetCertificate: certManager.GetCertificate,
+			NextProtos:     []string{acme.ALPNProto},
 		},
 		Handler: handler,
 		Addr:    ":https",
@@ -105,7 +93,7 @@ func joinGame(router *mux.Router) {
 	router.Host("join.jprbnsn.com").Handler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			code := path.Base(r.URL.Path)
-			http.Redirect(w, r, "https://machine-dot-nyt-games-dev.appspot.com/join/"+code,
+			http.Redirect(w, r, "https://www.nytimes.com/svc/crosswords/v6/multiplayer/join/"+code,
 				http.StatusMovedPermanently)
 		}),
 	)
